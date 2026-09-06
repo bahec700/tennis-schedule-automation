@@ -255,6 +255,7 @@ function readTueSatPart_(
 
     const players = [];
     const availableSubs = [];
+    const unresolvedNames = [];
 
     let ballPerson = '';
 
@@ -293,11 +294,21 @@ function readTueSatPart_(
       if (/^Ball$/i.test(cell)) {
         players.push(fullName);
         ballPerson = fullName;
+
+        if (!mapped.email) {
+          unresolvedNames.push(fullName);
+        }
+
         continue;
       }
 
       if (/^Play$/i.test(cell)) {
         players.push(fullName);
+
+        if (!mapped.email) {
+          unresolvedNames.push(fullName);
+        }
+
         continue;
       }
 
@@ -313,6 +324,14 @@ function readTueSatPart_(
     // Skip rows that have no scheduled players.
     if (players.length === 0) {
       continue;
+    }
+
+    if (unresolvedNames.length) {
+      Logger.log(
+        groupName +
+        ': could not find an email for scheduled player(s): ' +
+        unresolvedNames.join(', ')
+      );
     }
 
     // ---------------------------------
@@ -350,7 +369,8 @@ function readTueSatPart_(
       players,
       ballPerson,
       availableSubs,
-      recipients
+      recipients,
+      unresolvedPlayers: unresolvedNames
     });
   }
 
@@ -573,11 +593,11 @@ function mapTueSatHeaderToDirectory_(
   if (
     candidates.length > 1
   ) {
-    console.log(
+    Logger.log(
       `Ambiguous header "${raw}" -> multiple directory entries have first name "${rawParts.first}".`
     );
   } else {
-    console.log(
+    Logger.log(
       `No directory match for header "${raw}".`
     );
   }

@@ -104,6 +104,7 @@ function readNextThursdayMatch() {
 
     const players = [];
     const availableSubs = [];
+    const unresolvedNames = [];
 
     let ballPerson = '';
 
@@ -137,6 +138,12 @@ function readNextThursdayMatch() {
           ballPerson = fullName;
         }
 
+        // Scheduled player with no directory email - they won't
+        // get the reminder unless someone notices this.
+        if (!directoryEntry || !directoryEntry.email) {
+          unresolvedNames.push(fullName);
+        }
+
         continue;
       }
 
@@ -156,6 +163,13 @@ function readNextThursdayMatch() {
     // Skip rows that have no scheduled players at all.
     if (players.length === 0) {
       continue;
+    }
+
+    if (unresolvedNames.length) {
+      Logger.log(
+        'Thursday: could not find an email for scheduled player(s): ' +
+        unresolvedNames.join(', ')
+      );
     }
 
     // ---------------------------------
@@ -185,7 +199,8 @@ function readNextThursdayMatch() {
       players,
       ballPerson,
       availableSubs,
-      recipients
+      recipients,
+      unresolvedPlayers: unresolvedNames
     });
   }
 

@@ -1,20 +1,26 @@
 function runReminderScheduler() {
   Logger.log('Reminder scheduler started.');
 
-  processReminderGroup_(
-    'Tuesday',
-    readNextTuesdayMatch
-  );
+  const groups = [
+    ['Tuesday', readNextTuesdayMatch],
+    ['Thursday', readNextThursdayMatch],
+    ['Saturday', readNextSaturdayMatch]
+  ];
 
-  processReminderGroup_(
-    'Thursday',
-    readNextThursdayMatch
-  );
-
-  processReminderGroup_(
-    'Saturday',
-    readNextSaturdayMatch
-  );
+  // Each group is isolated: a failure in one (e.g. a sheet layout
+  // problem or a missing recipient) should not prevent the others
+  // from being processed.
+  groups.forEach(([groupName, readerFunction]) => {
+    try {
+      processReminderGroup_(groupName, readerFunction);
+    } catch (error) {
+      Logger.log(
+        groupName +
+        ': FAILED, continuing with remaining groups - ' +
+        error.message
+      );
+    }
+  });
 
   Logger.log('Reminder scheduler completed.');
 }
@@ -70,9 +76,13 @@ function processReminderGroup_(
     daysAway
   );
 
-  // Only act exactly N days before the session.
+  // Act on or within CONFIG.reminderLeadDays of the session (not only
+  // on the exact day), so a reminder still goes out even if the
+  // scheduler didn't run on the precise lead day (e.g. a missed
+  // trigger). The state check below still prevents duplicate sends.
   if (
-    daysAway !== CONFIG.reminderLeadDays
+    daysAway < 0 ||
+    daysAway > CONFIG.reminderLeadDays
   ) {
     Logger.log(
       groupName +

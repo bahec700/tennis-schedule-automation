@@ -7,7 +7,8 @@ function createMatchObject({
   players = [],
   ballPerson = '',
   availableSubs = [],
-  recipients = []
+  recipients = [],
+  unresolvedPlayers = []
 }) {
   return {
     group,
@@ -18,7 +19,8 @@ function createMatchObject({
     players,
     ballPerson,
     availableSubs,
-    recipients
+    recipients,
+    unresolvedPlayers
   };
 }
 

@@ -15,9 +15,6 @@ function buildReminderEmail(match) {
     'EEE MMM d'
   );
 
-  const location = 'Longfellow Club';
-  const court = '5';
-
   const scheduleUrl = getScheduleUrl_(match);
 
   // Match last year's ordering:
@@ -39,8 +36,18 @@ function buildReminderEmail(match) {
   const subs = [...(match.availableSubs || [])]
     .sort((a, b) => a.localeCompare(b));
 
-  const subject =
-    `Tennis reminder – ${weekdayShort} @ ${location}`;
+  const unresolved = match.unresolvedPlayers || [];
+
+  // Build the location/court clause from the match itself instead of
+  // assuming every group plays at the same place.
+  const locationClause = match.location
+    ? ` at ${match.location}` +
+      (match.court ? ` on court ${match.court}` : '')
+    : '';
+
+  const subject = match.location
+    ? `Tennis reminder – ${weekdayShort} @ ${match.location}`
+    : `Tennis reminder – ${weekdayShort}`;
 
   // ---------------------------------
   // Plain-text fallback
@@ -57,11 +64,16 @@ function buildReminderEmail(match) {
       subs.map(s => `- ${s}`).join('\n')
     : '';
 
+  const warningBlock = unresolved.length
+    ? `⚠️ Could not find an email address for: ${unresolved.join(', ')}. ` +
+      `They will NOT receive this reminder automatically — please notify them directly.`
+    : '';
+
   const body =
 `Hello players,
 
-This is a reminder that you are scheduled to play on ${weekdayLong} at ${match.time} at the Longfellow Club in Wayland on court ${court}.
-
+This is a reminder that you are scheduled to play on ${weekdayLong} at ${match.time}${locationClause}.
+${warningBlock}
 Main Roster
 ${rosterText}${subsText}
 
@@ -89,15 +101,27 @@ ${scheduleUrl}`;
     `
     : '';
 
+  const locationClauseHtml = match.location
+    ? ` at ${htmlEscape_(match.location)}` +
+      (match.court ? ` on court ${htmlEscape_(match.court)}` : '')
+    : '';
+
+  const warningHtml = unresolved.length
+    ? `<p><strong>⚠️ Could not find an email for:</strong> ` +
+      `${htmlEscape_(unresolved.join(', '))}. They will NOT receive this ` +
+      `reminder automatically — please notify them directly.</p>`
+    : '';
+
   const htmlBody =
 `<div>
   <p>Hello players,</p>
 
   <p>
     This is a reminder that you are scheduled to play on
-    ${htmlEscape_(weekdayLong)} at ${htmlEscape_(match.time)}
-    at the Longfellow Club in Wayland on court ${court}.
+    ${htmlEscape_(weekdayLong)} at ${htmlEscape_(match.time)}${locationClauseHtml}.
   </p>
+
+  ${warningHtml}
 
   <p><strong>Main Roster</strong></p>
 
