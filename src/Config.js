@@ -18,6 +18,8 @@ const CONFIG = {
       dayName: 'Tuesday',
       time: '7:30 PM',
       durationMinutes: 90,
+      location: 'Longfellow Club',
+      court: '1',
       enabled: true
     },
 
@@ -40,6 +42,8 @@ const CONFIG = {
       dayName: 'Saturday',
       time: '9:30 AM',
       durationMinutes: 90,
+      location: 'Longfellow Club',
+      court: '1',
       enabled: true
     }
   }
