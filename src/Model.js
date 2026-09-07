@@ -7,6 +7,7 @@ function createMatchObject({
   players = [],
   ballPerson = '',
   availableSubs = [],
+  availableSubRecipients = [],
   recipients = [],
   unresolvedPlayers = []
 }) {
@@ -19,6 +20,7 @@ function createMatchObject({
     players,
     ballPerson,
     availableSubs,
+    availableSubRecipients,
     recipients,
     unresolvedPlayers
   };

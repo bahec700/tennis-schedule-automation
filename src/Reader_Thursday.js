@@ -173,6 +173,24 @@ function readNextThursdayMatch() {
     }
 
     // ---------------------------------
+    // Available-sub recipients
+    // ---------------------------------
+
+    const availableSubRecipients = availableSubs
+      .map(fullName => {
+        const lastName =
+          getLastName(fullName).toUpperCase();
+
+        const entry =
+          directory[lastName];
+
+        return entry
+          ? String(entry.email || '').trim()
+          : '';
+      })
+      .filter(Boolean);
+
+    // ---------------------------------
     // Scheduled-player recipients
     // ---------------------------------
 
@@ -199,6 +217,7 @@ function readNextThursdayMatch() {
       players,
       ballPerson,
       availableSubs,
+      availableSubRecipients,
       recipients,
       unresolvedPlayers: unresolvedNames
     });

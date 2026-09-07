@@ -335,6 +335,30 @@ function readTueSatPart_(
     }
 
     // ---------------------------------
+    // Available-sub recipient addresses
+    // ---------------------------------
+
+    const availableSubRecipients = availableSubs
+      .map(fullName => {
+        const parts =
+          splitTueSatName_(
+            fullName
+          );
+
+        const key =
+          `${parts.first.toLowerCase()} ` +
+          `${parts.last.toLowerCase()}`;
+
+        const entry =
+          directory.byFullLower[key];
+
+        return entry
+          ? String(entry.email || '').trim()
+          : '';
+      })
+      .filter(Boolean);
+
+    // ---------------------------------
     // Recipient addresses
     // ---------------------------------
 
@@ -369,6 +393,7 @@ function readTueSatPart_(
       players,
       ballPerson,
       availableSubs,
+      availableSubRecipients,
       recipients,
       unresolvedPlayers: unresolvedNames
     });

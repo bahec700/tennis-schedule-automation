@@ -17,14 +17,20 @@ function buildReminderEmail(match) {
 
   const scheduleUrl = getScheduleUrl_(match);
 
-  // Match last year's ordering:
-  // ball person first, then everyone else alphabetically
+  const requestSubUrl = buildRequestSubUrl_(
+    match,
+    weekdayLong,
+    weekdayShort
+  );
+
+  // Ball person first, then everyone else alphabetically.
   const roster = match.players
     .map(name => ({
       name: name,
       bringBalls:
         match.ballPerson &&
-        name.toLowerCase() === match.ballPerson.toLowerCase()
+        name.toLowerCase() ===
+          match.ballPerson.toLowerCase()
     }))
     .sort((a, b) => {
       if (a.bringBalls && !b.bringBalls) return -1;
@@ -33,16 +39,23 @@ function buildReminderEmail(match) {
       return a.name.localeCompare(b.name);
     });
 
-  const subs = [...(match.availableSubs || [])]
-    .sort((a, b) => a.localeCompare(b));
+  const subs = [
+    ...(match.availableSubs || [])
+  ].sort((a, b) =>
+    a.localeCompare(b)
+  );
 
-  const unresolved = match.unresolvedPlayers || [];
+  const unresolved =
+    match.unresolvedPlayers || [];
 
-  // Build the location/court clause from the match itself instead of
-  // assuming every group plays at the same place.
+  // Build location/court clause from match configuration.
   const locationClause = match.location
     ? ` at ${match.location}` +
-      (match.court ? ` on court ${match.court}` : '')
+      (
+        match.court
+          ? `, court ${match.court}`
+          : ''
+      )
     : '';
 
   const subject = match.location
@@ -55,13 +68,19 @@ function buildReminderEmail(match) {
 
   const rosterText = roster
     .map(p =>
-      `- ${p.name}${p.bringBalls ? ' (balls)' : ''}`
+      `- ${p.name}${
+        p.bringBalls
+          ? ' (balls)'
+          : ''
+      }`
     )
     .join('\n');
 
   const subsText = subs.length
-    ? '\n\nAvailable Subs\n' +
-      subs.map(s => `- ${s}`).join('\n')
+    ? '\n\nSubs\n' +
+      subs
+        .map(s => `- ${s}`)
+        .join('\n')
     : '';
 
   const warningBlock = unresolved.length
@@ -69,17 +88,20 @@ function buildReminderEmail(match) {
       `They will NOT receive this reminder automatically — please notify them directly.`
     : '';
 
+  const requestSubText =
+    requestSubUrl
+      ? `\n\nRequest a sub:\n${requestSubUrl}`
+      : '';
+
   const body =
 `Hello players,
 
-This is a reminder that you are scheduled to play on ${weekdayLong} at ${match.time}${locationClause}.
+You're scheduled to play ${weekdayLong} at ${match.time}${locationClause}.
 ${warningBlock}
 Main Roster
-${rosterText}${subsText}
+${rosterText}${subsText}${requestSubText}
 
-Have a great match!
-
-Click here for the full schedule:
+View schedule:
 ${scheduleUrl}`;
 
   // ---------------------------------
@@ -88,22 +110,50 @@ ${scheduleUrl}`;
 
   const rosterHtml = roster
     .map(p =>
-      `<li>${htmlEscape_(p.name)}${p.bringBalls ? ' (balls)' : ''}</li>`
+      `<li>${htmlEscape_(p.name)}${
+        p.bringBalls
+          ? ' <img src="cid:ballIcon" width="16" height="16" style="vertical-align:-2px;" alt="ball">'
+          : ''
+      }</li>`
     )
     .join('');
 
   const subsHtml = subs.length
     ? `
-      <p><strong>Available Subs</strong></p>
-      <ul>
-        ${subs.map(s => `<li>${htmlEscape_(s)}</li>`).join('')}
+      <p style="margin:16px 0 4px 0;">
+        <strong>Subs</strong>
+      </p>
+
+      <ul style="margin:0 0 8px 24px; padding:0;">
+        ${
+          subs
+            .map(
+              s =>
+                `<li>${htmlEscape_(s)}</li>`
+            )
+            .join('')
+        }
       </ul>
+
+      ${
+        requestSubUrl
+          ? `<p style="margin:4px 0 16px 0;">
+               <a href="${htmlEscape_(requestSubUrl)}">
+                 Request a sub
+               </a>
+             </p>`
+          : ''
+      }
     `
     : '';
 
   const locationClauseHtml = match.location
     ? ` at ${htmlEscape_(match.location)}` +
-      (match.court ? ` on court ${htmlEscape_(match.court)}` : '')
+      (
+        match.court
+          ? `, court ${htmlEscape_(match.court)}`
+          : ''
+      )
     : '';
 
   const warningHtml = unresolved.length
@@ -117,25 +167,25 @@ ${scheduleUrl}`;
   <p>Hello players,</p>
 
   <p>
-    This is a reminder that you are scheduled to play on
+    You're scheduled to play
     ${htmlEscape_(weekdayLong)} at ${htmlEscape_(match.time)}${locationClauseHtml}.
   </p>
 
   ${warningHtml}
 
-  <p><strong>Main Roster</strong></p>
+  <p style="margin:16px 0 4px 0;">
+    <strong>Main Roster</strong>
+  </p>
 
-  <ul>
+  <ul style="margin:0 0 12px 24px; padding:0;">
     ${rosterHtml}
   </ul>
 
   ${subsHtml}
 
-  <p>Have a great match!</p>
-
-  <p>
+  <p style="margin:8px 0 0 0;">
     <a href="${htmlEscape_(scheduleUrl)}">
-      Click here for the full schedule
+      View schedule
     </a>
   </p>
 </div>`;
@@ -148,22 +198,95 @@ ${scheduleUrl}`;
 }
 
 
-function getScheduleUrl_(match) {
-  const cfg = CONFIG.groups[match.group];
+function buildRequestSubUrl_(
+  match,
+  weekdayLong,
+  weekdayShort
+) {
+  const recipients = [
+    ...new Set(
+      (match.availableSubRecipients || [])
+        .map(
+          email =>
+            String(email || '').trim()
+        )
+        .filter(Boolean)
+    )
+  ];
 
-  if (!cfg) {
-    throw new Error(
-      'Missing CONFIG for group: ' + match.group
+  if (recipients.length === 0) {
+    return '';
+  }
+
+  const locationClause = match.location
+    ? ` at ${match.location}` +
+      (
+        match.court
+          ? `, court ${match.court}`
+          : ''
+      )
+    : '';
+
+  const subject =
+    `Sub needed – ${weekdayShort} tennis`;
+
+  const body =
+`Hi,
+
+Can anyone sub for tennis on ${weekdayLong} at ${match.time}${locationClause}?
+
+Thanks`;
+
+  const params = [
+    'subject=' +
+      encodeURIComponent(subject),
+
+    'body=' +
+      encodeURIComponent(body)
+  ];
+
+  if (CONFIG.adminEmail) {
+    params.push(
+      'bcc=' +
+      encodeURIComponent(
+        CONFIG.adminEmail
+      )
     );
   }
 
-  const ss = SpreadsheetApp.openById(
-    cfg.spreadsheetId
+  return (
+    'mailto:' +
+    recipients
+      .map(
+        encodeURIComponent
+      )
+      .join(',') +
+    '?' +
+    params.join('&')
   );
+}
 
-  const sheet = ss.getSheetByName(
-    cfg.sheetName
-  );
+
+function getScheduleUrl_(match) {
+  const cfg =
+    CONFIG.groups[match.group];
+
+  if (!cfg) {
+    throw new Error(
+      'Missing CONFIG for group: ' +
+      match.group
+    );
+  }
+
+  const ss =
+    SpreadsheetApp.openById(
+      cfg.spreadsheetId
+    );
+
+  const sheet =
+    ss.getSheetByName(
+      cfg.sheetName
+    );
 
   if (!sheet) {
     throw new Error(
