@@ -112,7 +112,7 @@ ${scheduleUrl}`;
     .map(p =>
       `<li>${htmlEscape_(p.name)}${
         p.bringBalls
-          ? ' <img src="cid:ballIcon" width="16" height="16" style="vertical-align:-2px;" alt="ball">'
+          ? ' <img src="cid:ballIcon" width="16" height="16" style="width:16px;height:16px;vertical-align:-2px;" alt="ball">'
           : ''
       }</li>`
     )
