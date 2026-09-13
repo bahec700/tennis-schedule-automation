@@ -103,6 +103,7 @@ function readNextThursdayMatch() {
     }
 
     const players = [];
+    const ballPeople = [];
     const availableSubs = [];
     const unresolvedNames = [];
 
@@ -135,6 +136,7 @@ function readNextThursdayMatch() {
         players.push(fullName);
 
         if (bringBalls) {
+          ballPeople.push(fullName);
           ballPerson = fullName;
         }
 
@@ -216,6 +218,7 @@ function readNextThursdayMatch() {
       court: cfg.court,
       players,
       ballPerson,
+      ballPeople,
       availableSubs,
       availableSubRecipients,
       recipients,

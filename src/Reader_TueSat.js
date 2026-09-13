@@ -254,6 +254,7 @@ function readTueSatPart_(
     }
 
     const players = [];
+    const ballPeople = [];
     const availableSubs = [];
     const unresolvedNames = [];
 
@@ -293,6 +294,7 @@ function readTueSatPart_(
 
       if (/^Ball$/i.test(cell)) {
         players.push(fullName);
+        ballPeople.push(fullName);
         ballPerson = fullName;
 
         if (!mapped.email) {
@@ -392,6 +394,7 @@ function readTueSatPart_(
         cfg.court || '',
       players,
       ballPerson,
+      ballPeople,
       availableSubs,
       availableSubRecipients,
       recipients,

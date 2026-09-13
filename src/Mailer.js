@@ -8,20 +8,26 @@ function createReminderDraft(match) {
     return null;
   }
 
-  const email = buildReminderEmail(match);
+  const validationErrors =
+    validateReminderMatch_(match);
 
-  if (!match.recipients || match.recipients.length === 0) {
+  if (validationErrors.length > 0) {
+    sendReminderValidationAlert_(
+      match,
+      validationErrors
+    );
+
     throw new Error(
-      'No recipients found for ' +
-      match.group +
-      ' ' +
-      Utilities.formatDate(
-        match.date,
-        Session.getScriptTimeZone(),
-        'yyyy-MM-dd'
-      )
+      'Reminder validation failed: ' +
+      validationErrors.join(' | ')
     );
   }
+
+  // If this match previously had a validation problem
+  // and is now fixed, clear the old alert marker.
+  clearValidationAlertState_(match);
+
+  const email = buildReminderEmail(match);
 
   const to = match.recipients.join(',');
 
@@ -84,6 +90,258 @@ function createReminderDraft(match) {
     CONFIG.mode
   );
 }
+
+
+
+function validateReminderMatch_(match) {
+  const errors = [];
+
+  const players =
+    match.players || [];
+
+  const ballPeople =
+    match.ballPeople || [];
+
+  const recipients =
+    match.recipients || [];
+
+  const unresolved =
+    match.unresolvedPlayers || [];
+
+  // 1. Exactly four scheduled players.
+  if (players.length !== 4) {
+    errors.push(
+      'Expected exactly 4 scheduled players, found ' +
+      players.length +
+      (
+        players.length
+          ? ': ' + players.join(', ')
+          : ''
+      )
+    );
+  }
+
+  // 2. Exactly one scheduled player brings balls.
+  if (ballPeople.length !== 1) {
+    errors.push(
+      'Expected exactly 1 player bringing balls, found ' +
+      ballPeople.length +
+      (
+        ballPeople.length
+          ? ': ' + ballPeople.join(', ')
+          : ''
+      )
+    );
+  }
+
+  // 3. Every scheduled player must have one unique email address.
+  const normalizedRecipients =
+    recipients
+      .map(email =>
+        String(email || '')
+          .trim()
+          .toLowerCase()
+      )
+      .filter(Boolean);
+
+  const uniqueRecipients = [
+    ...new Set(normalizedRecipients)
+  ];
+
+  if (
+    unresolved.length > 0 ||
+    recipients.length !== players.length ||
+    uniqueRecipients.length !== players.length
+  ) {
+    let detail =
+      'Expected a valid unique email for every scheduled player. ' +
+      'Players: ' + players.length +
+      ', recipient emails: ' + recipients.length +
+      ', unique recipient emails: ' + uniqueRecipients.length;
+
+    if (unresolved.length > 0) {
+      detail +=
+        '. Missing/unresolved: ' +
+        unresolved.join(', ');
+    }
+
+    errors.push(detail);
+  }
+
+  return errors;
+}
+
+
+function sendReminderValidationAlert_(
+  match,
+  errors
+) {
+  if (!CONFIG.adminEmail) {
+    Logger.log(
+      'Validation failed, but CONFIG.adminEmail is empty.'
+    );
+    return;
+  }
+
+  const dateText =
+    Utilities.formatDate(
+      match.date,
+      Session.getScriptTimeZone(),
+      'EEE MMM d, yyyy'
+    );
+
+  const alertKey =
+    getValidationAlertKey_(match);
+
+  const signature =
+    errors.join(' || ');
+
+  const properties =
+    PropertiesService
+      .getScriptProperties();
+
+  const previousSignature =
+    properties.getProperty(alertKey);
+
+  // Avoid sending the same error email every time
+  // the scheduler runs with unchanged bad data.
+  if (previousSignature === signature) {
+    Logger.log(
+      'Validation alert already sent: ' +
+      alertKey
+    );
+    return;
+  }
+
+  const subject =
+    'Tennis reminder ERROR – ' +
+    match.group +
+    ' ' +
+    dateText;
+
+  const bodyLines = [
+    'The tennis reminder was NOT sent because the schedule failed validation.',
+    '',
+    'Group: ' + match.group,
+    'Date: ' + dateText,
+    'Time: ' + match.time,
+    '',
+    'Problem(s):'
+  ];
+
+  errors.forEach(error => {
+    bodyLines.push(
+      '- ' + error
+    );
+  });
+
+  bodyLines.push(
+    '',
+    'Scheduled players:'
+  );
+
+  if (
+    match.players &&
+    match.players.length
+  ) {
+    match.players.forEach(
+      player =>
+        bodyLines.push(
+          '- ' + player
+        )
+    );
+  } else {
+    bodyLines.push('- none');
+  }
+
+  bodyLines.push(
+    '',
+    'Players marked for balls:'
+  );
+
+  if (
+    match.ballPeople &&
+    match.ballPeople.length
+  ) {
+    match.ballPeople.forEach(
+      player =>
+        bodyLines.push(
+          '- ' + player
+        )
+    );
+  } else {
+    bodyLines.push('- none');
+  }
+
+  bodyLines.push(
+    '',
+    'Recipient emails:'
+  );
+
+  if (
+    match.recipients &&
+    match.recipients.length
+  ) {
+    match.recipients.forEach(
+      email =>
+        bodyLines.push(
+          '- ' + email
+        )
+    );
+  } else {
+    bodyLines.push('- none');
+  }
+
+  bodyLines.push(
+    '',
+    'Please correct the schedule. The normal reminder can run after the data is fixed.'
+  );
+
+  GmailApp.sendEmail(
+    CONFIG.adminEmail,
+    subject,
+    bodyLines.join('\n')
+  );
+
+  properties.setProperty(
+    alertKey,
+    signature
+  );
+
+  Logger.log(
+    'Validation alert sent to ' +
+    CONFIG.adminEmail +
+    ': ' +
+    subject
+  );
+}
+
+
+function getValidationAlertKey_(match) {
+  const dateKey =
+    Utilities.formatDate(
+      match.date,
+      Session.getScriptTimeZone(),
+      'yyyy-MM-dd'
+    );
+
+  return (
+    'VALIDATION_ALERT:' +
+    match.group +
+    ':' +
+    dateKey
+  );
+}
+
+
+function clearValidationAlertState_(match) {
+  PropertiesService
+    .getScriptProperties()
+    .deleteProperty(
+      getValidationAlertKey_(match)
+    );
+}
+
 
 
 function createTuesdayReminderDraft() {
