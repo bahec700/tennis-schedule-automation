@@ -1469,6 +1469,81 @@ function sendScheduleChangeAlert_(
 }
 
 
+function getGoodRosterChangeSummary_(
+  session
+) {
+  const removed = [];
+  const added = [];
+
+  (session.changes || [])
+    .forEach(change => {
+      let match =
+        change.match(
+          /^(.+?): removed from roster/
+        );
+
+      if (match) {
+        removed.push(
+          match[1]
+        );
+        return;
+      }
+
+      match =
+        change.match(
+          /^(.+?): added to roster/
+        );
+
+      if (match) {
+        added.push(
+          match[1]
+        );
+      }
+    });
+
+  if (
+    removed.length === 1 &&
+    added.length === 1
+  ) {
+    return [
+      removed[0] +
+      ' → ' +
+      added[0]
+    ];
+  }
+
+  const lines = [];
+
+  if (
+    removed.length > 0
+  ) {
+    lines.push(
+      'Out: ' +
+      removed.join(', ')
+    );
+  }
+
+  if (
+    added.length > 0
+  ) {
+    lines.push(
+      'In: ' +
+      added.join(', ')
+    );
+  }
+
+  if (
+    lines.length === 0
+  ) {
+    lines.push(
+      'Roster unchanged.'
+    );
+  }
+
+  return lines;
+}
+
+
 function buildScheduleChangePlainText_(
   report
 ) {
@@ -1490,74 +1565,77 @@ function buildScheduleChangePlainText_(
 
   report.changedSessions.forEach(
     (session, index) => {
+      const good =
+        session.status ===
+        'LOOKS GOOD';
+
       lines.push(
         session.group +
         ' – ' +
         session.dateLabel
       );
 
-      lines.push(
-        'Status: ' +
-        (
-          session.status ===
-          'LOOKS GOOD'
-            ? 'Looks good'
-            : 'PLEASE REVIEW'
-        )
-      );
+      if (good) {
+        const rosterSummary =
+          getGoodRosterChangeSummary_(
+            session
+          );
 
-      if (
-        session.problems.length
-      ) {
-        lines.push('');
-        lines.push('Problems:');
-
-        session.problems.forEach(
-          problem =>
-            lines.push(
-              '- ' + problem
-            )
-        );
-      } else if (
-        session.summaryLines.length
-      ) {
-        session.summaryLines.forEach(
+        rosterSummary.forEach(
           item =>
             lines.push(
-              '- ' + item
+              item
             )
         );
-      }
-
-      if (
-        session.changes.length
-      ) {
-        lines.push('');
-        lines.push('Changes:');
-
-        session.changes.forEach(
-          change =>
-            lines.push(
-              '- ' + change
-            )
-        );
-      }
-
-      if (
-        session.technicalChanges.length
-      ) {
-        lines.push('');
+      } else {
         lines.push(
-          'Technical details:'
+          'Status: PLEASE REVIEW'
         );
 
-        session.technicalChanges
-          .forEach(
+        if (
+          session.problems.length
+        ) {
+          lines.push('');
+          lines.push('Problems:');
+
+          session.problems.forEach(
+            problem =>
+              lines.push(
+                '- ' + problem
+              )
+          );
+        }
+
+        if (
+          session.changes.length
+        ) {
+          lines.push('');
+          lines.push('Changes:');
+
+          session.changes.forEach(
             change =>
               lines.push(
                 '- ' + change
               )
           );
+        }
+
+        if (
+          session.technicalChanges.length
+        ) {
+          lines.push('');
+          lines.push(
+            'Technical details:'
+          );
+
+          session.technicalChanges
+            .forEach(
+              change =>
+                lines.push(
+                  '- ' + change
+                )
+            );
+        }
       }
 
       lines.push('');
@@ -1602,67 +1680,83 @@ function buildScheduleChangeHtml_(
           session.status ===
           'LOOKS GOOD';
 
-        const problemsHtml =
-          session.problems.length
-            ? (
-                '<p><strong>Problems:</strong></p>' +
-                '<ul>' +
-                session.problems
-                  .map(
-                    item =>
-                      '<li>' +
-                      htmlEscape_(item) +
-                      '</li>'
-                  )
-                  .join('') +
-                '</ul>'
-              )
-            : (
-                '<ul>' +
-                session.summaryLines
-                  .map(
-                    item =>
-                      '<li>' +
-                      htmlEscape_(item) +
-                      '</li>'
-                  )
-                  .join('') +
-                '</ul>'
-              );
+        let detailsHtml = '';
 
-        const changesHtml =
-          session.changes.length
-            ? (
-                '<p><strong>Changes:</strong></p>' +
-                '<ul>' +
-                session.changes
-                  .map(
-                    item =>
-                      '<li>' +
-                      htmlEscape_(item) +
-                      '</li>'
-                  )
-                  .join('') +
-                '</ul>'
-              )
-            : '';
+        if (good) {
+          const rosterSummary =
+            getGoodRosterChangeSummary_(
+              session
+            );
 
-        const technicalHtml =
-          session.technicalChanges.length
-            ? (
-                '<p><strong>Technical details:</strong></p>' +
-                '<ul>' +
-                session.technicalChanges
-                  .map(
-                    item =>
-                      '<li><code>' +
-                      htmlEscape_(item) +
-                      '</code></li>'
-                  )
-                  .join('') +
-                '</ul>'
+          detailsHtml =
+            rosterSummary
+              .map(
+                item =>
+                  '<p style="margin:6px 0;">' +
+                  htmlEscape_(item) +
+                  '</p>'
               )
-            : '';
+              .join('');
+        } else {
+          const problemsHtml =
+            session.problems.length
+              ? (
+                  '<p><strong>Problems:</strong></p>' +
+                  '<ul>' +
+                  session.problems
+                    .map(
+                      item =>
+                        '<li>' +
+                        htmlEscape_(item) +
+                        '</li>'
+                    )
+                    .join('') +
+                  '</ul>'
+                )
+              : '';
+
+          const changesHtml =
+            session.changes.length
+              ? (
+                  '<p><strong>Changes:</strong></p>' +
+                  '<ul>' +
+                  session.changes
+                    .map(
+                      item =>
+                        '<li>' +
+                        htmlEscape_(item) +
+                        '</li>'
+                    )
+                    .join('') +
+                  '</ul>'
+                )
+              : '';
+
+          const technicalHtml =
+            session.technicalChanges.length
+              ? (
+                  '<p><strong>Technical details:</strong></p>' +
+                  '<ul>' +
+                  session.technicalChanges
+                    .map(
+                      item =>
+                        '<li><code>' +
+                        htmlEscape_(item) +
+                        '</code></li>'
+                    )
+                    .join('') +
+                  '</ul>'
+                )
+              : '';
+
+          detailsHtml =
+            '<p style="margin-top:0;">' +
+              '<strong>Status: PLEASE REVIEW</strong>' +
+            '</p>' +
+            problemsHtml +
+            changesHtml +
+            technicalHtml;
+        }
 
         return (
           '<div style="margin-bottom:24px;">' +
@@ -1675,18 +1769,7 @@ function buildScheduleChangeHtml_(
                 ) +
               '</strong>' +
             '</p>' +
-            '<p style="margin-top:0;">' +
-              '<strong>Status: ' +
-                (
-                  good
-                    ? 'Looks good'
-                    : 'PLEASE REVIEW'
-                ) +
-              '</strong>' +
-            '</p>' +
-            problemsHtml +
-            changesHtml +
-            technicalHtml +
+            detailsHtml +
             '<p>' +
               '<a href="' +
                 htmlEscape_(
@@ -1708,7 +1791,6 @@ function buildScheduleChangeHtml_(
     '</div>'
   );
 }
-
 
 // ============================================================
 // State helpers
