@@ -2171,7 +2171,7 @@ function formatMonitorDateLong_(
   return Utilities.formatDate(
     date,
     Session.getScriptTimeZone(),
-    'EEEE, MMMM d, yyyy'
+    'MMMM d, yyyy'
   );
 }
 
