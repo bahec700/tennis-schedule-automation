@@ -1,5 +1,5 @@
 const CONFIG = {
-  mode: 'DRAFT', // DRAFT | SEND | DISABLED
+  mode: 'SEND', // DRAFT | SEND | DISABLED
 
   adminEmail: 'bahec700@gmail.com',
 
